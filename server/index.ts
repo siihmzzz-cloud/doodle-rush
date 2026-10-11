@@ -10,8 +10,9 @@ const rooms = new Map<string, Room>();
 const actionWindows = new Map<string, { started: number; count: number }>();
 const app = express();
 const http = createServer(app);
-const socketPath = process.env.VERCEL === '1' ? '/api/socket-io/socket.io' : '/socket.io';
-const io = new Server(http, { cors: { origin: true }, path: socketPath });
+const isVercel = process.env.VERCEL === '1';
+const socketPath = isVercel ? '/api/socket-io' : '/socket.io';
+const io = new Server(http, { cors: { origin: true }, path: socketPath, addTrailingSlash: !isVercel });
 const port = Number(process.env.PORT || 3001);
 
 function safeRoom(room: Room, viewerId?: string): RoomView {

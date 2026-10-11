@@ -8,8 +8,8 @@ const AVATARS = ['🦊','🐸','🐼','🦁','🐨','🐯','🐙','🐻'];
 const initialSettings: Settings = { capacity: 8, seconds: 60, rounds: 5, category: 'Random', difficulty: 'Easy' };
 const socket: Socket = io({
   autoConnect: true,
-  path: import.meta.env.PROD ? '/api/socket-io/socket.io' : '/socket.io',
-  ...(import.meta.env.PROD ? { transports: ['websocket' as const] } : {}),
+  path: import.meta.env.PROD ? '/api/socket-io' : '/socket.io',
+  ...(import.meta.env.PROD ? { transports: ['websocket' as const], addTrailingSlash: false } : {}),
 });
 function makeId() { return localStorage.getItem('dr-player-id') || (() => { const id = crypto.randomUUID(); localStorage.setItem('dr-player-id', id); return id; })(); }
 function mergeStroke(strokes: Stroke[], next: Stroke) { const index = next.id ? strokes.findIndex(s => s.id === next.id) : -1; if (index < 0) return [...strokes, next].slice(-400); return strokes.map((s, i) => i === index ? { ...s, points: [...s.points, ...next.points] } : s); }
@@ -50,7 +50,32 @@ export default function App() {
   const winner = room ? [...room.players].sort((a,b) => b.score-a.score)[0] : undefined;
   const isTie = !!room && room.players.filter(p => p.score === winner?.score).length > 1;
   const guessed = self?.guessed ?? false;
-  useEffect(() => { const update = (r: RoomView) => { setRoom(r); setSettings(r.settings); }; const listed = (r: typeof publicRooms) => setPublicRooms(r); const connected = () => setConnectionError(''); const failed = () => setConnectionError(`The realtime game endpoint at ${window.location.origin}${import.meta.env.PROD ? '/api/socket-io/socket.io' : '/socket.io'} could not connect. Check the Vercel function logs.`); socket.on('connect', connected); socket.on('connect_error', failed); socket.on('room:update', update); socket.on('rooms:update', listed); socket.emit('rooms:list', listed); socket.on('draw:stroke', (s: Stroke) => setRoom(r => r ? ({ ...r, strokes: mergeStroke(r.strokes, s) }) : r)); socket.on('draw:clear', () => setRoom(r => r ? ({ ...r, strokes: [] }) : r)); socket.on('draw:undo', () => setRoom(r => r ? ({ ...r, strokes: r.strokes.slice(0, -1) }) : r)); return () => { socket.off('connect', connected); socket.off('connect_error', failed); socket.off('room:update', update); socket.off('rooms:update', listed); socket.off('draw:stroke'); socket.off('draw:clear'); socket.off('draw:undo'); }; }, []);
+  useEffect(() => {
+    const update = (r: RoomView) => { setRoom(r); setSettings(r.settings); };
+    const listed = (r: typeof publicRooms) => setPublicRooms(r);
+    const connected = () => setConnectionError('');
+    const failed = () => setConnectionError(`The realtime game endpoint at ${window.location.origin}${import.meta.env.PROD ? '/api/socket-io' : '/socket.io'} could not connect. Check the Vercel function logs.`);
+    const stroke = (s: Stroke) => setRoom(r => r ? { ...r, strokes: mergeStroke(r.strokes, s) } : r);
+    const clear = () => setRoom(r => r ? { ...r, strokes: [] } : r);
+    const undo = () => setRoom(r => r ? { ...r, strokes: r.strokes.slice(0, -1) } : r);
+    socket.on('connect', connected);
+    socket.on('connect_error', failed);
+    socket.on('room:update', update);
+    socket.on('rooms:update', listed);
+    socket.emit('rooms:list', listed);
+    socket.on('draw:stroke', stroke);
+    socket.on('draw:clear', clear);
+    socket.on('draw:undo', undo);
+    return () => {
+      socket.off('connect', connected);
+      socket.off('connect_error', failed);
+      socket.off('room:update', update);
+      socket.off('rooms:update', listed);
+      socket.off('draw:stroke', stroke);
+      socket.off('draw:clear', clear);
+      socket.off('draw:undo', undo);
+    };
+  }, []);
   useEffect(() => { if (!room?.endsAt) { setSeconds(0); return; } const tick = () => setSeconds(Math.max(0, Math.ceil((room.endsAt! - Date.now()) / 1000))); tick(); const t = window.setInterval(tick, 200); return () => clearInterval(t); }, [room?.endsAt]);
   useEffect(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [room?.feed.length]);
   const storeProfile = () => { const next = nameInput.trim().slice(0, 18) || 'Player'; setName(next); setNameInput(next); localStorage.setItem('dr-name', next); localStorage.setItem('dr-avatar', String(avatar)); };

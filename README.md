@@ -20,6 +20,12 @@ npm run web
 
 Open [http://localhost:5173](http://localhost:5173). Use a second browser or device to join with the room code. The server listens on port 3001 by default. If you change `PORT`, update the target in `vite.config.ts` too.
 
+## Deploying the multiplayer game
+
+The Vercel build serves the Vite frontend; `server/index.ts` is a separate Socket.IO process and is not started by that static deployment. Deploy the Node server on a host that keeps a process running (for example, Render, Railway, or Fly.io), configure its `PORT` if required, then add `VITE_SOCKET_URL` to the Vercel project's Environment Variables. Set it to the backend's public origin, such as `https://your-game-server.example.com` (no `/socket.io` suffix), and redeploy the frontend so Vite includes the value in its build. Leave this variable blank for local development.
+
+Rooms and open-lobby listings are kept in the server process's memory, so this setup expects one backend instance and active rooms are lost when it restarts. For multiple server instances, add shared room storage and a Socket.IO adapter. Vercel Functions have a WebSocket/Socket.IO option in public beta, but require a dedicated function route and websocket-specific client configuration; this project does not currently include that route.
+
 ## What works
 
 - Guest name and avatar saved in browser storage.

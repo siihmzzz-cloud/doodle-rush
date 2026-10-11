@@ -69,3 +69,34 @@
 .profile-pill,.player-row,.score-row,.feature-item,.panel { transition:background-color .2s,border-color .2s,transform .2s; }
 .player-row:not(.empty-player):hover { background:#222438; }
 .hero-art:focus-visible { outline:3px solid var(--lime); outline-offset:7px; border-radius:20px; }
+
+/* Match-end feedback: one celebratory focal moment with a still reduced-motion state. */
+.winner-reveal { position:relative; isolation:isolate; overflow:hidden; display:flex; flex-direction:column; align-items:center; padding:28px 22px 22px; margin:0 0 14px; min-height:300px; border:1px solid #61523b; border-radius:18px; background:radial-gradient(ellipse at 50% 0%,#40314b 0%,#252337 47%,#211f30 100%); text-align:center; animation:winner-arrive .55s cubic-bezier(.2,.85,.25,1) both; }
+.winner-reveal>*:not(.winner-confetti) { position:relative; z-index:1; }
+.winner-crown { width:48px;height:48px;display:grid;place-items:center;border:1px solid #88704b;border-radius:15px;background:linear-gradient(145deg,#f3ca71,#da9c47);color:#392b1e;box-shadow:0 9px 28px #e4ae4b2d;animation:crown-glint 1.6s ease-in-out .4s both; }
+.winner-kicker { margin-top:13px;color:#edc878;font:500 9px var(--mono);letter-spacing:1.7px; }
+.winner-reveal h2 { margin:6px 0 4px;color:#fffaf0;font:700 clamp(23px,3vw,33px)/1.1 var(--display);letter-spacing:-1px; }
+.winner-reveal>p { margin:0 0 16px;color:#bbb6c6;font-size:12px; }
+.winner-score { width:min(100%,355px);display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #454157;border-radius:12px;background:#191a29cc;text-align:left; }
+.winner-avatar { width:37px;height:37px;display:grid;place-items:center;border-radius:12px;background:#3c344c;font-size:21px; }
+.winner-score>span:nth-child(2) { display:grid;gap:3px;flex:1;min-width:0; }
+.winner-score>span:nth-child(2) b { color:#f7f4ff;font-size:12px; }
+.winner-score>span:nth-child(2) small { color:#9695a9;font-size:10px; }
+.winner-score>strong { color:#d6f58d;font:700 20px var(--display); }
+.winner-score>strong small { margin-left:4px;color:#9ca18a;font:500 8px var(--mono); }
+.winner-home { min-height:43px;margin-top:14px;padding:0 16px; }
+.winner-confetti { position:absolute;inset:0 0 auto;height:170px;overflow:hidden;pointer-events:none; }
+.winner-confetti i { position:absolute;top:-11px;width:7px;height:11px;border-radius:2px;background:#d6f58d;opacity:0;animation:confetti-fall 1.05s cubic-bezier(.15,.7,.35,1) both; }
+.winner-confetti i:nth-child(3n) { background:#f2b963; }
+.winner-confetti i:nth-child(3n + 1) { background:#b69af1; }
+.winner-confetti i:nth-child(4n) { width:5px;height:5px;border-radius:50%; }
+@keyframes winner-arrive { from { opacity:0;transform:translateY(14px) scale(.985); } to { opacity:1;transform:translateY(0) scale(1); } }
+@keyframes crown-glint { 0% { transform:rotate(-8deg) scale(.82); } 45% { transform:rotate(4deg) scale(1.08); } 100% { transform:rotate(0) scale(1); } }
+@keyframes confetti-fall { 0% { opacity:0;transform:translateY(-8px) rotate(0); } 12% { opacity:1; } 100% { opacity:0;transform:translateY(185px) rotate(260deg); } }
+.motion-toggle { position:absolute;z-index:5;bottom:12px;left:50%;transform:translateX(-50%);min-height:38px;padding:0 12px;border:1px solid #71618c;border-radius:999px;background:#1b1a2cdd;color:#e2daf3;font-size:10px;font-weight:800;white-space:nowrap;backdrop-filter:blur(8px);transition:background .18s,border-color .18s,color .18s; }
+.motion-toggle:hover { border-color:#c8f66d;background:#2b2a39;color:#e8f6c2; }
+.motion-toggle.is-on { border-color:#93b558;background:#2b3827;color:#d7f797; }
+.motion-notice { position:absolute;z-index:5;bottom:56px;left:50%;width:max-content;max-width:min(290px,85%);transform:translateX(-50%);padding:7px 10px;border-radius:9px;background:#171725eF;color:#e6e2f0;font-size:10px;text-align:center;box-shadow:0 7px 20px #0004; }
+@media(max-width:760px) { .winner-reveal { padding:24px 14px 18px; } .winner-reveal>p { max-width:270px;line-height:1.5; } .motion-toggle { bottom:5px; } .motion-notice { bottom:47px; } }
+@media(prefers-reduced-motion:reduce) { .winner-reveal,.winner-crown { animation:none!important;opacity:1; } .winner-confetti i { display:none!important; } }
+.connection-alert{margin:0 0 12px;padding:11px 13px;border:1px solid #704545;border-radius:10px;background:#2d2028;color:#ffc2b7;font-size:12px;line-height:1.5;animation:toast-in .2s ease-out}

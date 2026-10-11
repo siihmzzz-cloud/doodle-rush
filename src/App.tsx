@@ -6,8 +6,11 @@ import { supabase, type Cosmetic } from './supabase';
 
 const AVATARS = ['🦊','🐸','🐼','🦁','🐨','🐯','🐙','🐻'];
 const initialSettings: Settings = { capacity: 8, seconds: 60, rounds: 5, category: 'Random', difficulty: 'Easy' };
-const socketUrl = (import.meta.env.VITE_SOCKET_URL as string | undefined)?.trim();
-const socket: Socket = io(socketUrl || undefined, { autoConnect: true });
+const socket: Socket = io({
+  autoConnect: true,
+  path: import.meta.env.PROD ? '/api/socket-io/socket.io' : '/socket.io',
+  ...(import.meta.env.PROD ? { transports: ['websocket' as const] } : {}),
+});
 function makeId() { return localStorage.getItem('dr-player-id') || (() => { const id = crypto.randomUUID(); localStorage.setItem('dr-player-id', id); return id; })(); }
 function mergeStroke(strokes: Stroke[], next: Stroke) { const index = next.id ? strokes.findIndex(s => s.id === next.id) : -1; if (index < 0) return [...strokes, next].slice(-400); return strokes.map((s, i) => i === index ? { ...s, points: [...s.points, ...next.points] } : s); }
 
@@ -47,13 +50,13 @@ export default function App() {
   const winner = room ? [...room.players].sort((a,b) => b.score-a.score)[0] : undefined;
   const isTie = !!room && room.players.filter(p => p.score === winner?.score).length > 1;
   const guessed = self?.guessed ?? false;
-  useEffect(() => { const update = (r: RoomView) => { setRoom(r); setSettings(r.settings); }; const listed = (r: typeof publicRooms) => setPublicRooms(r); const connected = () => setConnectionError(''); const failed = () => setConnectionError(socketUrl ? `Can’t reach the game server at ${socketUrl}. Check that your realtime server is running and allows this Vercel site.` : 'The game server is not deployed with this site. Add VITE_SOCKET_URL in Vercel to point to your running Socket.IO server, then redeploy.'); socket.on('connect', connected); socket.on('connect_error', failed); socket.on('room:update', update); socket.on('rooms:update', listed); socket.emit('rooms:list', listed); socket.on('draw:stroke', (s: Stroke) => setRoom(r => r ? ({ ...r, strokes: mergeStroke(r.strokes, s) }) : r)); socket.on('draw:clear', () => setRoom(r => r ? ({ ...r, strokes: [] }) : r)); socket.on('draw:undo', () => setRoom(r => r ? ({ ...r, strokes: r.strokes.slice(0, -1) }) : r)); return () => { socket.off('connect', connected); socket.off('connect_error', failed); socket.off('room:update', update); socket.off('rooms:update', listed); socket.off('draw:stroke'); socket.off('draw:clear'); socket.off('draw:undo'); }; }, []);
+  useEffect(() => { const update = (r: RoomView) => { setRoom(r); setSettings(r.settings); }; const listed = (r: typeof publicRooms) => setPublicRooms(r); const connected = () => setConnectionError(''); const failed = () => setConnectionError(`The realtime game endpoint at ${window.location.origin}${import.meta.env.PROD ? '/api/socket-io/socket.io' : '/socket.io'} could not connect. Check the Vercel function logs.`); socket.on('connect', connected); socket.on('connect_error', failed); socket.on('room:update', update); socket.on('rooms:update', listed); socket.emit('rooms:list', listed); socket.on('draw:stroke', (s: Stroke) => setRoom(r => r ? ({ ...r, strokes: mergeStroke(r.strokes, s) }) : r)); socket.on('draw:clear', () => setRoom(r => r ? ({ ...r, strokes: [] }) : r)); socket.on('draw:undo', () => setRoom(r => r ? ({ ...r, strokes: r.strokes.slice(0, -1) }) : r)); return () => { socket.off('connect', connected); socket.off('connect_error', failed); socket.off('room:update', update); socket.off('rooms:update', listed); socket.off('draw:stroke'); socket.off('draw:clear'); socket.off('draw:undo'); }; }, []);
   useEffect(() => { if (!room?.endsAt) { setSeconds(0); return; } const tick = () => setSeconds(Math.max(0, Math.ceil((room.endsAt! - Date.now()) / 1000))); tick(); const t = window.setInterval(tick, 200); return () => clearInterval(t); }, [room?.endsAt]);
   useEffect(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [room?.feed.length]);
   const storeProfile = () => { const next = nameInput.trim().slice(0, 18) || 'Player'; setName(next); setNameInput(next); localStorage.setItem('dr-name', next); localStorage.setItem('dr-avatar', String(avatar)); };
-  const ack = (event: string, payload: unknown) => new Promise<{ code?: string; error?: string; room?: RoomView }>(resolve => { if (!socket.connected) { resolve({ error: connectionError || 'The game server is offline. Check the VITE_SOCKET_URL deployment setting.' }); return; } const timeout = window.setTimeout(() => resolve({ error: `The game server at ${socketUrl || window.location.origin} did not respond. Check its deployment logs and Socket.IO URL.` }), 8000); socket.emit(event, payload, (result: { code?: string; error?: string; room?: RoomView }) => { window.clearTimeout(timeout); resolve(result); }); });
-  const createRoom = async (isPublic = false) => { storeProfile(); const response = await ack('room:create', { player: { id: playerId, name: nameInput.trim() || 'Player', avatar }, settings, isPublic }); if (response.error) setError(response.error); else { if (response.room) setRoom(response.room); setError(''); } };
-  const joinRoom = async (e?: FormEvent, rawCode = codeInput) => { e?.preventDefault(); storeProfile(); const response = await ack('room:join', { code: rawCode, player: { id: playerId, name: nameInput.trim() || 'Player', avatar } }); if (response.error) setError(response.error); else { if (response.room) setRoom(response.room); setError(''); } };
+  const ack = (event: string, payload: unknown) => new Promise<{ code?: string; error?: string; room?: RoomView }>(resolve => { if (!socket.connected) { resolve({ error: connectionError || 'The realtime game server is offline. Check the Vercel function logs.' }); return; } const timeout = window.setTimeout(() => resolve({ error: `The realtime game server at ${window.location.origin} did not respond. Check its deployment logs.` }), 8000); socket.emit(event, payload, (result: { code?: string; error?: string; room?: RoomView }) => { window.clearTimeout(timeout); resolve(result); }); });
+  const createRoom = async (isPublic = false) => { storeProfile(); const response = await ack('room:create', { player: { id: playerId, name: nameInput.trim() || 'Player', avatar }, settings, isPublic }); if (response.error) setError(socket.connected ? response.error : ''); else { if (response.room) setRoom(response.room); setError(''); } };
+  const joinRoom = async (e?: FormEvent, rawCode = codeInput) => { e?.preventDefault(); storeProfile(); const response = await ack('room:join', { code: rawCode, player: { id: playerId, name: nameInput.trim() || 'Player', avatar } }); if (response.error) setError(socket.connected ? response.error : ''); else { if (response.room) setRoom(response.room); setError(''); } };
   const updateSetting = (patch: Partial<Settings>) => { const next = { ...settings, ...patch }; setSettings(next); if (room) socket.emit('room:settings', { code: room.code, playerId, settings: patch }); };
   const start = async () => { if (!room) return; const r = await ack('game:start', { code: room.code, playerId }); if (r.error) setError(r.error); };
   const nextRound = () => room && socket.emit('game:next', { code: room.code, playerId });
@@ -67,7 +70,7 @@ export default function App() {
   const awardGuess = (g: CloseGuess) => room && socket.emit('host:award-close-guess', { code: room.code, playerId, guessId: g.id }, (result: {error?:string}) => { if (result?.error) setError(result.error); });
   const loadShop = async () => {
     setShopOpen(true); setShopMessage('');
-    if (!supabase) { setShopMessage('Supabase is not configured. Add the project URL and anon key to .env.local.'); return; }
+    if (!supabase) { setShopMessage('Supabase could not initialize. Check the public project URL and anon key.'); return; }
     const { data: current } = await supabase.auth.getUser();
     let user = current.user;
     if (!user) {

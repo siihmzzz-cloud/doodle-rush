@@ -22,9 +22,11 @@ Open [http://localhost:5173](http://localhost:5173). Use a second browser or dev
 
 ## Deploying the multiplayer game
 
-The Vercel build serves the Vite frontend; `server/index.ts` is a separate Socket.IO process and is not started by that static deployment. Deploy the Node server on a host that keeps a process running (for example, Render, Railway, or Fly.io), configure its `PORT` if required, then add `VITE_SOCKET_URL` to the Vercel project's Environment Variables. Set it to the backend's public origin, such as `https://your-game-server.example.com` (no `/socket.io` suffix), and redeploy the frontend so Vite includes the value in its build. Leave this variable blank for local development.
+The Vercel build includes the Socket.IO function at `api/socket-io.ts`; the production client connects to `/api/socket-io/socket.io` over WebSocket on the same domain. No `VITE_SOCKET_URL` is required. Enable Vercel Fluid Compute/WebSocket support for the project if it is not already enabled. Local development keeps using the standalone `npm run dev` server on port 3001 through Vite's `/socket.io` proxy.
 
-Rooms and open-lobby listings are kept in the server process's memory, so this setup expects one backend instance and active rooms are lost when it restarts. For multiple server instances, add shared room storage and a Socket.IO adapter. Vercel Functions have a WebSocket/Socket.IO option in public beta, but require a dedicated function route and websocket-specific client configuration; this project does not currently include that route.
+The browser bundle has the Supabase project URL and anon-role key as public defaults in `src/supabase.ts`, so Vercel does not need those build variables to configure the client. The anon key is designed for browsers; row-level security in the SQL migration is the security boundary. Never put a service-role/secret key in frontend code or any `VITE_` variable.
+
+Room state currently lives in function memory. Vercel may route separate players or reconnects to different function instances, and WebSocket functions have a maximum connection lifetime, so this is suitable for a small beta but not durable multiplayer at scale. Use a shared room store and Socket.IO adapter (for example Redis) before relying on cross-instance rooms or long matches. Vercel's WebSocket support is in public beta; see [Vercel's announcement](https://vercel.com/changelog/websocket-support-is-now-in-public-beta) and [connection/state guidance](https://vercel.com/kb/guide/do-vercel-serverless-functions-support-websocket-connections).
 
 ## What works
 
@@ -61,7 +63,7 @@ The game server is authoritative for room state and match scores. It validates t
 
 ## Supabase setup
 
-`src/supabase.ts` reads the public URL and anon/publishable key from Vite variables. The supplied project values are configured locally in `.env.local`, which is ignored by Git. The browser key is public and protected by the included RLS policies; never put a service/secret key in a `VITE_` variable.
+`src/supabase.ts` accepts Vite overrides and includes this project's public URL and anon-role key as browser-safe defaults, so the Vercel build does not rely on ignored `.env.local` files. The browser key is public and protected by the included RLS policies; never put a service/secret key in a `VITE_` variable.
 
 Run `supabase/migrations/202610110001_shop.sql` in the Supabase SQL Editor. Enable anonymous sign-ins under Authentication → Providers so guest profiles can be created. The migration seeds the catalog and creates purchase/equip RPCs that check the authenticated guest and debit the wallet atomically.
 

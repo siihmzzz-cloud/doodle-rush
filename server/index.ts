@@ -10,7 +10,8 @@ const rooms = new Map<string, Room>();
 const actionWindows = new Map<string, { started: number; count: number }>();
 const app = express();
 const http = createServer(app);
-const io = new Server(http, { cors: { origin: true } });
+const socketPath = process.env.VERCEL === '1' ? '/api/socket-io/socket.io' : '/socket.io';
+const io = new Server(http, { cors: { origin: true }, path: socketPath });
 const port = Number(process.env.PORT || 3001);
 
 function safeRoom(room: Room, viewerId?: string): RoomView {
@@ -137,4 +138,8 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => { leave(socket.id); actionWindows.delete(`draw:${socket.id}`); actionWindows.delete(`guess:${socket.id}`); });
 });
 app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size }));
-http.listen(port, '0.0.0.0', () => console.log(`DoodleRush server listening on http://localhost:${port}`));
+if (process.env.VERCEL !== '1') {
+  http.listen(port, '0.0.0.0', () => console.log(`DoodleRush server listening on http://localhost:${port}`));
+}
+
+export default http;
